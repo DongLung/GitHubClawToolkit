@@ -1,3 +1,11 @@
+---
+name: Line Bot
+description: 用來建立與部署 LINE Bot 專案的模板
+required_env:
+  - LINE_CHANNEL_ACCESS_TOKEN
+  - LINE_CHANNEL_SECRET
+---
+  
 # line-bot
 
 這個目錄提供一個 GitHub Actions workflow：`install-line-bot.yml`。  
