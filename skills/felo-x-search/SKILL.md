@@ -163,6 +163,7 @@ curl -X POST "https://openapi.felo.ai/v2/x/tweet/replies" \
 ```markdown
 ### @elonmusk(Elon Musk ✓)
 - Posted: 2026-03-09T12:00:00Z ｜ Tweet ID: `1234567890`
+- 🔗 [查看原推文](https://x.com/elonmusk/status/1234567890)
 
 Tweet content here...
 
@@ -170,6 +171,15 @@ Engagement: 5.0K likes ｜ 1.0K retweets ｜ 200 replies
 
 ---
 ```
+
+## Link Validation
+
+每次輸出推文連結前，**必須**執行以下檢核，確保連結正確：
+
+1. **連結格式**：推文連結必須為 `https://x.com/{username}/status/{tweet_id}`，username 與 tweet_id 均來自 API 回傳的資料，**禁止自行推測或填入預設值**。
+2. **資料對應**：連結中的 `username` 必須與該推文的 `author.username` 欄位一致，`tweet_id` 必須與 `id` 欄位一致。
+3. **禁止捏造**：若 API 未回傳 tweet_id 或 username，則該則推文不得附上連結，改為標注「連結不可用」。
+4. **用戶連結**：用戶頁面連結格式為 `https://x.com/{username}`，同樣只能使用 API 回傳的 username。
 
 ## Error Handling
 
