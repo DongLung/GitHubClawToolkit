@@ -22,7 +22,7 @@
 | [find-skills](skills/find-skills/) | 幫你找出最適合任務的技能 | — |
 | [google-stitch](skills/google-stitch/) | 用提示詞產生 UI 設計圖 + HTML | `GEMINI_API_KEY` |
 | [image-describer](skills/image-describer/) | 用繁體中文描述圖片內容 | `GEMINI_API_KEY` |
-| [nanobanana-2-image-generation](skills/nanobanana-2-image-generation/) | AI 圖片生成、編輯與合成 | `GEMINI_API_KEY` |
+| [gemini-nanobanana](skills/gemini-nanobanana/) | AI 圖片生成、編輯與合成 | `GEMINI_API_KEY` |
 | [skill-creator](skills/skill-creator/) | 建立、測試與改進新技能 | — |
 | [summary](skills/summary/) | 將網頁、PDF、影片、音訊摘要成繁體中文 | `GEMINI_API_KEY` |
 | [telegram-notify](skills/telegram-notify/) | 傳送 Telegram 通知訊息 | `TELEGRAM_BOT_TOKEN` |

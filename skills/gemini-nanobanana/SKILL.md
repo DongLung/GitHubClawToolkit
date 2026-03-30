@@ -1,5 +1,5 @@
 ---
-name: nanobanana-2-image-generation
+name: gemini-nanobanana
 description: Use this skill when users ask to generate, edit, or compose images with Nano Banana (Gemini image models), including text-to-image, image editing, multi-image composition, grounding, and output sizing/saving controls.
 required_env:
   - GEMINI_API_KEY
@@ -81,7 +81,7 @@ Assuming `GITHUB_REPO=test/baoclaw-5`, `BRANCH=issue-3`:
 - Default to Node.js wrapper flows for regular usage, especially when payload control is needed.
 - Quick path (agent runs from `issue-N/`; resolve the repo root first):
   - `REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "../..")` then
-    `node "$REPO_ROOT/.agents/skills/nanobanana-2-image-generation/scripts/nanobanana-cli.js" --prompt "..."`
+    `node "$REPO_ROOT/.agents/skills/gemini-nanobanana/scripts/nanobanana-cli.js" --prompt "..."`
   - Add references via repeated `-i/--image` (up to 14).
   - Enable grounding via `--google-search` when prompt needs fresh web context.
 - The API key (`GEMINI_API_KEY` / `NANOBANANA_GEMINI_API_KEY`) is injected by the workflow environment; do **not** hardcode it. The CLI reads it automatically from the environment.
