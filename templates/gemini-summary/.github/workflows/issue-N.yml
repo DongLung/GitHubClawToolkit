@@ -50,6 +50,9 @@ permissions:
 env:
   ISSUE_NUMBER: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
   COMMENT_ID: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.comment_id || inputs.comment_id }}"
+  USER_COMMENT_ID: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.user_comment_id || inputs.user_comment_id }}"
+  ISSUE_BRANCH: "issue-${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
+  SUMMARY_MODEL: "${{ vars.GEMINI_SUMMARY_MODEL || 'gemini-3-flash-preview' }}"
   GEMINI_API_KEY: "${{ secrets.GEMINI_API_KEY }}"
 
 jobs:
@@ -58,24 +61,20 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # 把目標 repo 檢出到 runner，切換到對應 issue branch。
-      - name: Checkout repository
+      - name: Checkout issue branch
         uses: actions/checkout@v4
         with:
-          ref: "issue-${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
+          ref: "${{ env.ISSUE_BRANCH }}"
           fetch-depth: 1
           token: "${{ github.token }}"
 
-      # 先把 Node.js 環境準備好。
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
 
-      # 安裝 Bun
       - uses: oven-sh/setup-bun@v2
 
-      # 安裝相關套件
       - run: bun install --no-fund --no-audit @google/genai @mozilla/readability linkedom
 
       - name: 狀態更新處理
@@ -91,15 +90,14 @@ jobs:
           mkdir -p "artifacts/${{ env.COMMENT_ID }}"
           touch "artifacts/${{ env.COMMENT_ID }}/result.md"
 
-      # ── 執行內容摘要任務 ──────────────────────────────────────────────────
-      # 從 issue.md 讀取目標 URL 或檔案路徑，使用 GoogleGenAI SDK 生成摘要並儲存到 artifacts 目錄。
       - name: 執行任務
         if: ${{ (github.event_name == 'repository_dispatch' && github.event.client_payload.event_data != 'StatusUpdate') || inputs.event_data != 'StatusUpdate' }}
         id: summarize
         shell: bash
         env:
           GEMINI_API_KEY: ${{ env.GEMINI_API_KEY }}
-          ISSUE_DIR: "artifacts/${{ env.COMMENT_ID }}"
+          GEMINI_SUMMARY_MODEL: ${{ env.SUMMARY_MODEL }}
+          ISSUE_DIR: "./artifacts/${{ env.COMMENT_ID }}"
           PROMPT_FILE: "./issue.md"
           SUMMARIZE_SCRIPT: "${{ github.workspace }}/scripts/summarize-inline.mjs"
         run: |
@@ -131,16 +129,14 @@ jobs:
           fi
 
           mkdir -p "${ISSUE_DIR}"
-          result_file="${ISSUE_DIR}/result.md"
 
           {
             printf '📝 內容摘要完成！\n\n'
             printf '%s\n\n' "${summary}"
-          } > "${result_file}"
+          } > "${ISSUE_DIR}/result.md"
 
-          echo "::notice::摘要完成，結果已寫入 ${result_file}"
+          echo "::notice::摘要完成，結果已寫入 ${ISSUE_DIR}/result.md"
 
-      # 推送結果到 issue branch。
       - name: 推送結果
         if: always()
         uses: duotify/GitHubClawToolkit/actions/commit-push-issue-branch-action@v1.1.2
