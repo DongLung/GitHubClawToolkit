@@ -61,6 +61,7 @@ env:
   ISSUE_NUMBER: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
   # 若有提供現成的 comment id，就直接更新那則留言。
   COMMENT_ID: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.comment_id || inputs.comment_id }}"
+  USER_COMMENT_ID: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.user_comment_id || inputs.user_comment_id }}"
   # 給 Copilot CLI 做 GitHub 驗證用的 token；實際權限要看 repo secrets 如何配置。
   COPILOT_GITHUB_TOKEN: "${{ secrets.COPILOT_GITHUB_TOKEN }}"
   # 給 Copilot CLI 做 FELO API 認證用的金鑰；實際權限要看 repo secrets 如何配置。
@@ -114,7 +115,7 @@ jobs:
           COPILOT_HOME: ".copilot"
           FELO_API_KEY: ${{ env.FELO_API_KEY }}
         run: |
-          copilot -p "目前 issue-comment-id 為： ${{ env.COMMENT_ID }} ， $(cat issue.md)" \
+          copilot -p "目前 issue-comment-id 為： ${{ env.COMMENT_ID }} ， $(cat artifacts/${{ env.USER_COMMENT_ID }}/user.md)" \
           --yolo --stream off --continue --output-format json \
           > artifacts/${{ env.COMMENT_ID }}/output.jsonl 2>&1
 
