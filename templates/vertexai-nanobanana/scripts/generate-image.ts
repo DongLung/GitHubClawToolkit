@@ -10,7 +10,6 @@ type PlannedImageConfig = {
   imageConfig: {
     aspectRatio: string;
     imageSize: '512' | '1K' | '2K' | '4K';
-    personGeneration?: string;
   };
 };
 
@@ -35,10 +34,6 @@ const IMAGE_CONFIG_SCHEMA = {
         imageSize: {
           type: 'string',
           enum: ['512', '1K', '2K', '4K'],
-        },
-        personGeneration: {
-          type: 'string',
-          description: '若不需要特別指定可留空字串。',
         },
       },
     },
@@ -88,6 +83,15 @@ function extensionToMimeType(filePath: string): string {
 
 async function wait(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url: string, init?: RequestInit): Promise<Response> {
+  let response = await fetch(url, init);
+  if (response.status === 429) {
+    await wait(1000);
+    response = await fetch(url, init);
+  }
+  return response;
 }
 
 async function generateContentWithRetry(
@@ -255,31 +259,48 @@ async function fetchGitHubFileAsBase64(
       'X-GitHub-Api-Version': '2022-11-28',
     },
   };
-  let response = await fetch(url, requestInit);
-  if (response.status === 429) {
-    await wait(1000);
-    response = await fetch(url, requestInit);
-  }
+  const response = await fetchWithRetry(url, requestInit);
 
   if (!response.ok) {
     throw new Error(`GitHub API 讀取附件失敗 (${response.status})：${target.owner}/${target.repo}/${target.path}@${target.ref}`);
   }
 
-  const payload = await response.json() as { content?: string; encoding?: string };
+  const payload = await response.json() as { content?: string; encoding?: string; download_url?: string | null };
   const content = normalizeText(payload.content);
-  if (!content) {
-    throw new Error(`GitHub API 未回傳附件內容：${target.owner}/${target.repo}/${target.path}@${target.ref}`);
-  }
-
-  const normalizedBase64 = payload.encoding === 'base64'
-    ? content.replace(/\s+/g, '')
-    : Buffer.from(content, 'utf8').toString('base64');
   const mimeType = typeof attachment.mime_type === 'string' && normalizeText(attachment.mime_type)
     ? normalizeText(attachment.mime_type)
     : extensionToMimeType(target.path);
 
+  if (content) {
+    const normalizedBase64 = payload.encoding === 'base64'
+      ? content.replace(/\s+/g, '')
+      : Buffer.from(content, 'utf8').toString('base64');
+
+    return {
+      data: normalizedBase64,
+      mimeType,
+    };
+  }
+
+  const downloadUrl = typeof payload.download_url === 'string' ? normalizeText(payload.download_url) : '';
+  if (!downloadUrl) {
+    throw new Error(`GitHub API 未回傳附件內容：${target.owner}/${target.repo}/${target.path}@${target.ref}`);
+  }
+
+  const rawResponse = await fetchWithRetry(downloadUrl, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/octet-stream',
+    },
+  });
+  if (!rawResponse.ok) {
+    throw new Error(`GitHub API 下載附件失敗 (${rawResponse.status})：${target.owner}/${target.repo}/${target.path}@${target.ref}`);
+  }
+
+  const rawBytes = Buffer.from(await rawResponse.arrayBuffer()).toString('base64');
+
   return {
-    data: normalizedBase64,
+    data: rawBytes,
     mimeType,
   };
 }
@@ -400,7 +421,6 @@ function parsePlannedImageConfig(responseText: string | undefined): PlannedImage
   const finalPrompt = normalizeText(parsed?.finalPrompt);
   const aspectRatio = normalizeText(parsed?.imageConfig?.aspectRatio);
   const imageSize = normalizeText(parsed?.imageConfig?.imageSize) as PlannedImageConfig['imageConfig']['imageSize'];
-  const personGeneration = normalizeText(parsed?.imageConfig?.personGeneration);
 
   if (!finalPrompt) throw new Error('structured output 缺少 finalPrompt。');
   if (!aspectRatio) throw new Error('structured output 缺少 imageConfig.aspectRatio。');
@@ -411,7 +431,6 @@ function parsePlannedImageConfig(responseText: string | undefined): PlannedImage
     imageConfig: {
       aspectRatio,
       imageSize,
-      ...(personGeneration ? { personGeneration } : {}),
     },
   };
 }

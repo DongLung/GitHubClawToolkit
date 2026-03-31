@@ -85,6 +85,15 @@ async function wait(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function fetchWithRetry(url: string, init?: RequestInit): Promise<Response> {
+  let response = await fetch(url, init);
+  if (response.status === 429) {
+    await wait(1000);
+    response = await fetch(url, init);
+  }
+  return response;
+}
+
 async function generateContentWithRetry(
   ai: GoogleGenAI,
   request: Parameters<GoogleGenAI['models']['generateContent']>[0],
@@ -250,31 +259,48 @@ async function fetchGitHubFileAsBase64(
       'X-GitHub-Api-Version': '2022-11-28',
     },
   };
-  let response = await fetch(url, requestInit);
-  if (response.status === 429) {
-    await wait(1000);
-    response = await fetch(url, requestInit);
-  }
+  const response = await fetchWithRetry(url, requestInit);
 
   if (!response.ok) {
     throw new Error(`GitHub API 讀取附件失敗 (${response.status})：${target.owner}/${target.repo}/${target.path}@${target.ref}`);
   }
 
-  const payload = await response.json() as { content?: string; encoding?: string };
+  const payload = await response.json() as { content?: string; encoding?: string; download_url?: string | null };
   const content = normalizeText(payload.content);
-  if (!content) {
-    throw new Error(`GitHub API 未回傳附件內容：${target.owner}/${target.repo}/${target.path}@${target.ref}`);
-  }
-
-  const normalizedBase64 = payload.encoding === 'base64'
-    ? content.replace(/\s+/g, '')
-    : Buffer.from(content, 'utf8').toString('base64');
   const mimeType = typeof attachment.mime_type === 'string' && normalizeText(attachment.mime_type)
     ? normalizeText(attachment.mime_type)
     : extensionToMimeType(target.path);
 
+  if (content) {
+    const normalizedBase64 = payload.encoding === 'base64'
+      ? content.replace(/\s+/g, '')
+      : Buffer.from(content, 'utf8').toString('base64');
+
+    return {
+      data: normalizedBase64,
+      mimeType,
+    };
+  }
+
+  const downloadUrl = typeof payload.download_url === 'string' ? normalizeText(payload.download_url) : '';
+  if (!downloadUrl) {
+    throw new Error(`GitHub API 未回傳附件內容：${target.owner}/${target.repo}/${target.path}@${target.ref}`);
+  }
+
+  const rawResponse = await fetchWithRetry(downloadUrl, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/octet-stream',
+    },
+  });
+  if (!rawResponse.ok) {
+    throw new Error(`GitHub API 下載附件失敗 (${rawResponse.status})：${target.owner}/${target.repo}/${target.path}@${target.ref}`);
+  }
+
+  const rawBytes = Buffer.from(await rawResponse.arrayBuffer()).toString('base64');
+
   return {
-    data: normalizedBase64,
+    data: rawBytes,
     mimeType,
   };
 }
