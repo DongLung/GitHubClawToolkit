@@ -14,10 +14,6 @@ inputs:
   copilot_github_token:
     description: 'Copilot CLI 使用的 GitHub Token'
     required: true
-  brain_meta:
-    description: 'BRAIN_META 標記字串，用於後續系統辨識來源'
-    required: false
-    default: '<!-- githubclaw-brain-result: {"source":"githubclaw-worker-brain"} -->'
   github_repository:
     description: '目標儲存庫（格式：owner/repo）'
     required: true
@@ -60,7 +56,6 @@ runs:
         ISSUE_DIR: ${{ inputs.issue_dir }}
         RESULT_FILE: ${{ inputs.result_file }}
         LOG_FILE: ${{ inputs.log_file }}
-        BRAIN_META: ${{ inputs.brain_meta }}
         GITHUB_REPOSITORY: ${{ inputs.github_repository }}
         GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
         NANOBANANA_GEMINI_API_KEY: ${{ inputs.gemini_api_key }}
@@ -108,15 +103,6 @@ runs:
         )
         status=${PIPESTATUS[0]}
         set -e
-
-        # 確保結果檔內一定包含 BRAIN_META，方便後續系統辨識來源。
-        if grep -Fq "${BRAIN_META}" "${RESULT_FILE}" 2>/dev/null; then
-          true
-        elif [[ -s "${RESULT_FILE}" ]]; then
-          printf '\n\n%s\n' "${BRAIN_META}" >> "${RESULT_FILE}"
-        else
-          printf '%s\n' "${BRAIN_META}" > "${RESULT_FILE}"
-        fi
 
         # 將 copilot CLI 的 exit code 傳給後續 step 與整個 workflow。
         echo "status=${status}" >> "$GITHUB_OUTPUT"

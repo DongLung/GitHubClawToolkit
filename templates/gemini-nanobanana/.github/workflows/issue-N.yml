@@ -37,7 +37,7 @@ on:
       model:
         description: 'Gemini 圖片生成模型名稱'
         required: false
-        default: 'imagen-4.0-generate-001'
+        default: 'gemini-3-flash-preview'
         type: string
   repository_dispatch:
     types: [create-image]
@@ -55,10 +55,8 @@ permissions:
 env:
   ISSUE_NUMBER: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
   COMMENT_ID: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.comment_id || inputs.comment_id }}"
-  MODEL: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.model || inputs.model || 'imagen-4.0-generate-001' }}"
-  BRAIN_META: '<!-- githubclaw-brain-result: {"source":"githubclaw-worker-brain"} -->'
-  AUTOMATION_GIT_USER_NAME: "${{ vars['AUTOMATION_GIT_USER_NAME'] || 'github-actions[bot]' }}"
-  AUTOMATION_GIT_USER_EMAIL: "${{ vars['AUTOMATION_GIT_USER_EMAIL'] || 'github-actions[bot]@users.noreply.github.com' }}"
+  MODEL: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.model || inputs.model || 'gemini-3-flash-preview' }}"
+
   GEMINI_API_KEY: "${{ secrets.GEMINI_API_KEY }}"
 
 jobs:
@@ -183,39 +181,25 @@ jobs:
               url="https://github.com/${GITHUB_REPOSITORY}/blob/${branch_name}/${f}?raw=true"
               printf '![%s](%s)\n\n' "${filename}" "${url}"
             done
-            printf '%s\n' "${BRAIN_META}"
           } > "${result_file}"
 
       # 推送結果到 issue branch。
       - name: 推送結果
         if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          git config user.name "${AUTOMATION_GIT_USER_NAME}"
-          git config user.email "${AUTOMATION_GIT_USER_EMAIL}"
-
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: add generated images for issue #${{ env.ISSUE_NUMBER }}"
-          fi
-          git fetch origin "issue-${{ env.ISSUE_NUMBER }}"
-          git rebase "origin/issue-${{ env.ISSUE_NUMBER }}"
-          git push --force-with-lease origin "issue-${{ env.ISSUE_NUMBER }}"
+        uses: duotify/GitHubClawToolkit/actions/commit-push-issue-branch-action@v1.1.1
+        with:
+          issue_number: ${{ env.ISSUE_NUMBER }}
 
       - name: 任務失敗處理
         if: failure() && steps.generate.conclusion == 'failure'
-        uses: duotify/GitHubClawToolkit/actions/error-handler-action@v1.1.0
+        uses: duotify/GitHubClawToolkit/actions/error-handler-action@v1.1.1
         with:
           output_file: "artifacts/${{ env.COMMENT_ID }}/result.md"
           result_file: "artifacts/${{ env.COMMENT_ID }}/result.md"
 
       - name: 執行結果回報
         if: always()
-        uses: duotify/GitHubClawToolkit/actions/update-comment-action@v1.1.0
+        uses: duotify/GitHubClawToolkit/actions/update-comment-action@v1.1.1
         with:
           issue_number: ${{ env.ISSUE_NUMBER }}
           comment_id: ${{ env.COMMENT_ID }}

@@ -50,9 +50,6 @@ permissions:
 env:
   ISSUE_NUMBER: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
   COMMENT_ID: "${{ github.event_name == 'repository_dispatch' && github.event.client_payload.comment_id || inputs.comment_id }}"
-  BRAIN_META: '<!-- githubclaw-brain-result: {"source":"githubclaw-worker-brain"} -->'
-  AUTOMATION_GIT_USER_NAME: "${{ vars['AUTOMATION_GIT_USER_NAME'] || 'github-actions[bot]' }}"
-  AUTOMATION_GIT_USER_EMAIL: "${{ vars['AUTOMATION_GIT_USER_EMAIL'] || 'github-actions[bot]@users.noreply.github.com' }}"
   GEMINI_API_KEY: "${{ secrets.GEMINI_API_KEY }}"
 
 jobs:
@@ -415,7 +412,6 @@ jobs:
           {
             printf '📝 內容摘要完成！\n\n'
             printf '%s\n\n' "${summary}"
-            printf '%s\n' "${BRAIN_META}"
           } > "${result_file}"
 
           echo "::notice::摘要完成，結果已寫入 ${result_file}"
@@ -423,31 +419,20 @@ jobs:
       # 推送結果到 issue branch。
       - name: 推送結果
         if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          git config user.name "${AUTOMATION_GIT_USER_NAME}"
-          git config user.email "${AUTOMATION_GIT_USER_EMAIL}"
-
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: add summary for issue #${{ env.ISSUE_NUMBER }}"
-          fi
-          git push origin "issue-${{ env.ISSUE_NUMBER }}" --force
+        uses: duotify/GitHubClawToolkit/actions/commit-push-issue-branch-action@v1.1.1
+        with:
+          issue_number: ${{ env.ISSUE_NUMBER }}
 
       - name: 任務失敗處理
         if: failure() && steps.summarize.conclusion == 'failure'
-        uses: duotify/GitHubClawToolkit/actions/error-handler-action@v1.1.0
+        uses: duotify/GitHubClawToolkit/actions/error-handler-action@v1.1.1
         with:
           output_file: "artifacts/${{ env.COMMENT_ID }}/result.md"
           result_file: "artifacts/${{ env.COMMENT_ID }}/result.md"
 
       - name: 執行結果回報
         if: always()
-        uses: duotify/GitHubClawToolkit/actions/update-comment-action@v1.1.0
+        uses: duotify/GitHubClawToolkit/actions/update-comment-action@v1.1.1
         with:
           issue_number: ${{ env.ISSUE_NUMBER }}
           comment_id: ${{ env.COMMENT_ID }}

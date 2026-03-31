@@ -1,0 +1,61 @@
+name: Commit and push issue branch results
+description: 將 issue workflow 產生的結果提交並推送至 issue branch。
+
+inputs:
+  issue_number:
+    description: Issue 編號，用於 commit message 和 branch name
+    required: true
+  push_token:
+    description: 用來 git push 的 GitHub token；未提供時自動使用 github.token
+    required: false
+    default: ''
+  github_repository:
+    description: owner/repo 格式；未提供時自動使用 github.repository
+    required: false
+    default: ''
+  git_user_name:
+    description: git commit 的 user.name
+    required: false
+    default: "github-actions[bot]"
+  git_user_email:
+    description: git commit 的 user.email
+    required: false
+    default: "41898282+github-actions[bot]@users.noreply.github.com"
+  commit_message:
+    description: 自訂 commit message，支援 ${ISSUE_NUMBER} 展開
+    required: false
+    default: "chore: update results for issue #${ISSUE_NUMBER}"
+
+runs:
+  using: composite
+  steps:
+    - name: Commit and push issue branch results
+      shell: bash
+      env:
+        ISSUE_NUMBER: ${{ inputs.issue_number }}
+        PUSH_TOKEN: ${{ inputs.push_token || github.token }}
+        GITHUB_REPOSITORY: ${{ inputs.github_repository || github.repository }}
+        AUTOMATION_GIT_USER_NAME: ${{ inputs.git_user_name }}
+        AUTOMATION_GIT_USER_EMAIL: ${{ inputs.git_user_email }}
+        COMMIT_MESSAGE_TEMPLATE: ${{ inputs.commit_message }}
+      run: |
+        set -euo pipefail
+
+        # composite action 不繼承前一 step 的 git 設定，需在此重新指定身分與遠端 URL。
+        git config user.name "${AUTOMATION_GIT_USER_NAME}"
+        git config user.email "${AUTOMATION_GIT_USER_EMAIL}"
+        git remote set-url origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+        # 展開 commit message 中的 ${ISSUE_NUMBER} 變數。
+        COMMIT_MESSAGE="${COMMIT_MESSAGE_TEMPLATE/\$\{ISSUE_NUMBER\}/${ISSUE_NUMBER}}"
+
+        git add -A
+
+        # staging area 無變更則跳過，避免產生空 commit。
+        if git diff --cached --quiet; then
+          echo "沒有變更，略過 commit。"
+          exit 0
+        fi
+
+        git commit -m "${COMMIT_MESSAGE}"
+        git push origin "issue-${ISSUE_NUMBER}" --force
