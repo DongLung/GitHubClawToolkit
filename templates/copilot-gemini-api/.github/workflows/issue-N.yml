@@ -115,7 +115,7 @@ jobs:
           COPILOT_HOME: ".copilot"
           GEMINI_API_KEY: ${{ env.GEMINI_API_KEY }}
         run: |
-          copilot -p "目前 issue-comment-id 為： ${{ env.COMMENT_ID }} ， $(cat artifacts/${{ env.USER_COMMENT_ID }}/user.md)" \
+          copilot -p "{issue-comment-id}=${{ env.COMMENT_ID }}\n\n$(cat artifacts/${{ env.USER_COMMENT_ID }}/user.md)" \
           --yolo --stream off --continue --output-format json \
           > artifacts/${{ env.COMMENT_ID }}/output.jsonl 2>&1
 

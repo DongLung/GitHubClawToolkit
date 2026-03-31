@@ -113,7 +113,7 @@ jobs:
           CODEX_HOME: ".codex"
           GEMINI_API_KEY: ${{ env.GEMINI_API_KEY }}
         run: |
-          codex exec --yolo "目前 issue-comment-id 為： ${{ env.COMMENT_ID }} ， $(cat artifacts/${{ env.USER_COMMENT_ID }}/user.md)" 2>&1 | tee artifacts/${{ env.COMMENT_ID }}/output.jsonl
+          codex exec --yolo "{issue-comment-id}=${{ env.COMMENT_ID }}\n\n$(cat artifacts/${{ env.USER_COMMENT_ID }}/user.md)" 2>&1 | tee artifacts/${{ env.COMMENT_ID }}/output.jsonl
 
       # 推送結果到 issue branch。
       - name: 推送結果
