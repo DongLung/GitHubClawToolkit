@@ -37,7 +37,7 @@ on:
   repository_dispatch:
     types: [create-image]
 
-run-name: "🍌 Create Image Issue #${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
+run-name: "🍌 圖片生成 Issue #${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
 
 concurrency:
   group: "create-image-${{ github.repository }}-${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"

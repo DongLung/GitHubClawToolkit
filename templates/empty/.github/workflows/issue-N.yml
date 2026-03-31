@@ -1,4 +1,5 @@
 name: '執行小龍蝦任務 #N'
+run-name: "🦞 執行小龍蝦任務"
 
 on:
   workflow_dispatch:

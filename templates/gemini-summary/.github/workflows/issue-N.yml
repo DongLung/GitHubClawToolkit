@@ -37,7 +37,7 @@ on:
   repository_dispatch:
     types: [summarize-content]
 
-run-name: "📝 Summarize Content Issue #${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
+run-name: "📝 摘要生成 Issue #${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
 
 concurrency:
   group: "summarize-content-${{ github.repository }}-${{ github.event_name == 'repository_dispatch' && github.event.client_payload.issue_number || inputs.issue_number }}"
