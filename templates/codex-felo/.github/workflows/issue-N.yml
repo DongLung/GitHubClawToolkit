@@ -89,7 +89,7 @@ jobs:
 
       # 安裝 OpenAI Codex CLI，這是後續執行任務的核心工具。
       - name: Install OpenAI Codex CLI
-        run: npm install -g @openai/codex
+        run: npm install -g @openai/codex@${{ vars.CODEX_CLI_VERSION || '0.118.0' }}
 
       - name: 狀態更新處理
         if: ${{ (github.event_name == 'repository_dispatch' && github.event.client_payload.event_data == 'StatusUpdate') || inputs.event_data == 'StatusUpdate' }}
@@ -136,3 +136,6 @@ jobs:
           issue_number: ${{ env.ISSUE_NUMBER }}
           comment_id: ${{ env.COMMENT_ID }}
           message_file: artifacts/${{ env.COMMENT_ID }}/result.md
+
+
+
