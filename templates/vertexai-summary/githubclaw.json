@@ -14,7 +14,7 @@
   "support_url": "https://github.com/duotify/GitHubClawToolkit/issues",
   "homepage": "https://learn.duotify.com/courses/githubclaw",
   "modelVar": "VERTEXAI_SUMMARY_MODEL",
-  "requiredEnv": ["VERTEXAI_SUMMARY_API_KEY"],
+  "requireEnv": ["VERTEXAI_SUMMARY_API_KEY"],
   "models": ["google/gemini-2.5-flash"],
   "apiFormat": "vertexai"
 }
