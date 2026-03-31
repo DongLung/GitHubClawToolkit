@@ -1,1 +1,0 @@
-# rewrite-result-image-urls-action

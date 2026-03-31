@@ -1,1 +1,0 @@
-# patch-issue-comment-action

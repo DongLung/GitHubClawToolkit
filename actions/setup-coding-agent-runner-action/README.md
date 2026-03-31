@@ -1,1 +1,0 @@
-# setup-coding-agent-runner-action
