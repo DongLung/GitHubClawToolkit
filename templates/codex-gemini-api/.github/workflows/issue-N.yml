@@ -128,8 +128,8 @@ jobs:
         if: failure() && steps.codex_task.conclusion == 'failure'
         uses: duotify/GitHubClawToolkit/actions/error-handler-action@v1.1.3
         with:
-          output_file: artifacts/${{ env.COMMENT_ID }}/output.jsonl
-          result_file: artifacts/${{ env.COMMENT_ID }}/error.log  
+          output_file: artifacts/${{ env.COMMENT_ID }}/error.log
+          result_file: artifacts/${{ env.COMMENT_ID }}/result.md  
 
 
       - name: 執行結果回報
