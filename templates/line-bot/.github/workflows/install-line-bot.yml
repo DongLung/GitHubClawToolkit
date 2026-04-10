@@ -33,7 +33,7 @@ on:
         default: "+08:00"
         type: string
 
-run-name: "🚀 安裝 Line Bot - ${{ inputs.line_bot_id }}"
+run-name: "🚀 安裝 LINEBotWorker - ${{ inputs.line_bot_id }}"
 
 permissions:
   contents: read
