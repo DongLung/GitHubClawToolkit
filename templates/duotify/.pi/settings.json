@@ -1,0 +1,5 @@
+{
+  "defaultProvider": "duotify",
+  "defaultModel": "duotify-reasoning-1",
+  "quietStartup": true
+}

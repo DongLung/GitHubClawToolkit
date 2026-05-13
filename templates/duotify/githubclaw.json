@@ -1,0 +1,30 @@
+{
+  "name": "Duotify LLM API",
+  "tagline": "使用多奇教育訓練 LLM API，快速啟用 duotify-reasoning-1",
+  "description": "使用多奇教育訓練提供的 LLM API 服務，支援 duotify-reasoning-1 模型，而 API 金鑰可以直接從多奇教育訓練官網取得。此範本已預先設定 Pi Coding Agent 的 OpenAI 相容自訂 provider，適合想快速使用 Duotify API 執行小龍蝦任務的使用者。",
+  "category": "ai",
+  "tags": ["pi", "duotify-reasoning-1", "duotify"],
+  "version": "1.0.0",
+  "support_url": "https://github.com/duotify/GitHubClawToolkit/issues",
+  "homepage": "https://learn.duotify.com/courses/githubclaw",
+  "byokFlow": true,
+  "byokConfig": {
+    "path": ".pi/settings.json",
+    "providerField": "defaultProvider",
+    "modelField": "defaultModel",
+    "merge": true
+  },
+  "providers": [
+    {
+      "id": "duotify",
+      "label": "Duotify LLM API",
+      "description": "使用多奇教育訓練提供的 OpenAI 相容 LLM API 服務。",
+      "isDefault": true,
+      "secretName": "DUOTIFY_API_KEY",
+      "defaultModel": "duotify-reasoning-1",
+      "models": [
+        { "value": "duotify-reasoning-1", "label": "duotify-reasoning-1" }
+      ]
+    }
+  ]
+}

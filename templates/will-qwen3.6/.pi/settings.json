@@ -1,5 +1,0 @@
-{
-  "defaultProvider": "pgx",
-  "defaultModel": "qwen3.6",
-  "quietStartup": true
-}

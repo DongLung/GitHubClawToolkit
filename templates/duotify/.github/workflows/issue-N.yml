@@ -96,6 +96,8 @@ jobs:
         if: ${{ (github.event_name == 'repository_dispatch' && github.event.client_payload.event_data != 'StatusUpdate') || inputs.event_data != 'StatusUpdate' }}
         id: pi_task
         shell: bash
+        env:
+          DUOTIFY_API_KEY: ${{ secrets.DUOTIFY_API_KEY }}
         run: |
           RAW_ISSUE_NUMBER='${{ env.ISSUE_NUMBER }}'
           RAW_COMMENT_ID='${{ env.COMMENT_ID }}'
@@ -110,6 +112,11 @@ jobs:
 
           if [[ -z "$COMMENT_ID" || -z "$USER_COMMENT_ID" ]]; then
             echo "COMMENT_ID or USER_COMMENT_ID is missing"
+            exit 1
+          fi
+
+          if [[ -z "${DUOTIFY_API_KEY:-}" ]]; then
+            echo "DUOTIFY_API_KEY secret is missing"
             exit 1
           fi
 
