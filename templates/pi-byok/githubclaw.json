@@ -80,9 +80,7 @@
         { "value": "meta-llama/llama-4-maverick-17b-128e-instruct", "label": "Llama 4 Maverick 17B" },
         { "value": "meta-llama/llama-4-scout-17b-16e-instruct", "label": "Llama 4 Scout 17B" },
         { "value": "mistral-saba-24b", "label": "Mistral Saba 24B" },
-        { "value": "gemma2-9b-it", "label": "Gemma 2 9B" },
-        { "value": "groq/compound", "label": "Compound" },
-        { "value": "groq/compound-mini", "label": "Compound Mini" }
+        { "value": "gemma2-9b-it", "label": "Gemma 2 9B" }
       ]
     },
     {
