@@ -216,4 +216,4 @@ $RECYCLE.BIN/
 *.lnk
 
 *.vars
-*.env
+*.envcache/
