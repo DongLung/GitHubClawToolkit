@@ -170,6 +170,7 @@ jobs:
           EOF
           )"
 
+          echo "Starting AGY execution..."
           set +e
           agy --print "${AGY_PROMPT}" \
             --dangerously-skip-permissions \
@@ -179,14 +180,22 @@ jobs:
           AGY_EXIT=$?
           set -e
 
-          if [[ -s "artifacts/${COMMENT_ID}/output.log" ]]; then
-            sed -n '/^Authentication required\./,/^Error: authentication timed out\./p' "artifacts/${COMMENT_ID}/output.log" \
-              >> "artifacts/${COMMENT_ID}/error.log" || true
+          echo "AGY exit code: ${AGY_EXIT}"
+          echo "output.log size: $(wc -c < "artifacts/${COMMENT_ID}/output.log") bytes"
+          echo "error.log size: $(wc -c < "artifacts/${COMMENT_ID}/error.log") bytes"
+
+          # 顯示 stderr 供診斷（限前 20 行）
+          if [[ -s "artifacts/${COMMENT_ID}/error.log" ]]; then
+            echo "--- AGY stderr (first 20 lines) ---"
+            head -20 "artifacts/${COMMENT_ID}/error.log"
+            echo "--- end stderr ---"
           fi
 
-          # agy 在認證失敗時可能仍回傳 exit 0，需主動偵測輸出中的錯誤訊息
-          if grep -Eq '(^Authentication required\\.|^Error:|authentication timed out|You are not logged into Antigravity\\.)' "artifacts/${COMMENT_ID}/output.log"; then
-            echo "AGY output indicates an execution/authentication error." >> "artifacts/${COMMENT_ID}/error.log"
+          # 偵測認證失敗（僅檢查明確的 auth 錯誤訊息，不匹配一般性 Error:）
+          if grep -Eq '(^Authentication required\.|authentication timed out|You are not logged into Antigravity\.)' "artifacts/${COMMENT_ID}/output.log"; then
+            echo "::error::AGY authentication failed. Please update AGY_OAUTH_TOKEN secret."
+            sed -n '/^Authentication required\./,/^Error: authentication timed out\./p' "artifacts/${COMMENT_ID}/output.log" \
+              >> "artifacts/${COMMENT_ID}/error.log" || true
             exit 1
           fi
 
@@ -197,13 +206,16 @@ jobs:
                 cat "artifacts/${COMMENT_ID}/output.log"
               } > "artifacts/${COMMENT_ID}/result.md"
             else
-              echo "result.md not generated and output.log is empty" >> "artifacts/${COMMENT_ID}/error.log"
+              echo "::error::AGY produced no output (exit code: ${AGY_EXIT})"
+              if [[ -s "artifacts/${COMMENT_ID}/error.log" ]]; then
+                cat "artifacts/${COMMENT_ID}/error.log"
+              fi
               exit 1
             fi
           fi
 
           if [[ $AGY_EXIT -ne 0 ]]; then
-            exit $AGY_EXIT
+            echo "::warning::AGY exited with code ${AGY_EXIT}, but output was produced"
           fi
 
       - name: 推送結果
