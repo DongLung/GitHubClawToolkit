@@ -95,13 +95,19 @@ jobs:
           AGY_DIR="${HOME}/.gemini/antigravity-cli"
           mkdir -p "${AGY_DIR}"
 
-          # 還原 token 檔
           printf '%s' "${AGY_OAUTH_TOKEN}" > "${AGY_DIR}/antigravity-oauth-token"
           chmod 600 "${AGY_DIR}/antigravity-oauth-token"
 
-          # 產生 settings.json（model + GCP project）
           python3 -c "
-          import json
+          import json, sys
+
+          # 驗證 token
+          data = json.loads(open('${AGY_DIR}/antigravity-oauth-token').read())
+          token = data.get('token', {})
+          if not token.get('refresh_token'):
+              sys.exit('ERROR: AGY_OAUTH_TOKEN must contain token.refresh_token')
+
+          # 產生 settings.json
           settings = {
               'gcp': {'project': '${AGY_GCP_PROJECT}', 'location': 'global'},
               'model': '${AGY_MODEL}',
@@ -109,19 +115,8 @@ jobs:
           }
           with open('${AGY_DIR}/settings.json', 'w') as f:
               json.dump(settings, f, indent=2)
-          print('settings.json written')
-          "
 
-          # 驗證 token JSON
-          python3 -c "
-          import json, sys
-          data = json.loads(open('${AGY_DIR}/antigravity-oauth-token').read())
-          token = data.get('token', {})
-          if not token.get('refresh_token'):
-              sys.exit('AGY_OAUTH_TOKEN must contain token.refresh_token')
-          print('AGY token validated: auth_method=' + data.get('auth_method','unknown'))
-          print('GCP project: ${AGY_GCP_PROJECT}')
-          print('Model: ${AGY_MODEL}')
+          print(f'Credentials configured (auth_method={data.get(\"auth_method\",\"unknown\")}, model=${AGY_MODEL})')
           "
 
       - name: Install Antigravity CLI
@@ -132,56 +127,6 @@ jobs:
           curl -fsSL https://antigravity.google/cli/install.sh | bash
           echo "${HOME}/.local/bin" >> "$GITHUB_PATH"
           "${HOME}/.local/bin/agy" --help >/dev/null
-
-      - name: 診斷 AGY CLI
-        if: ${{ (github.event_name == 'repository_dispatch' && github.event.client_payload.event_data != 'StatusUpdate') || inputs.event_data != 'StatusUpdate' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "=== AGY diagnostic ==="
-          echo "which agy: $(which agy)"
-          agy --version 2>&1 || true
-          echo ""
-
-          # 檢查 token 檔案狀態（不印出完整 token）
-          TOKEN_PATH="${HOME}/.gemini/antigravity-cli/antigravity-oauth-token"
-          echo "Token file exists: $(test -f "${TOKEN_PATH}" && echo yes || echo no)"
-          echo "Token file size: $(wc -c < "${TOKEN_PATH}" 2>/dev/null || echo 0) bytes"
-          python3 -c "
-          import json
-          data = json.load(open('${TOKEN_PATH}'))
-          t = data.get('token', {})
-          print(f'auth_method: {data.get(\"auth_method\", \"unknown\")}')
-          print(f'has access_token: {bool(t.get(\"access_token\"))}')
-          print(f'has refresh_token: {bool(t.get(\"refresh_token\"))}')
-          print(f'expiry: {t.get(\"expiry\", \"unknown\")}')
-          " 2>&1 || true
-          echo ""
-
-          echo "=== Simple test with --log-file ==="
-          AGY_LOG="/tmp/agy-debug.log"
-          set +e
-          timeout 90 agy --print "Say hello in one sentence" \
-            --dangerously-skip-permissions \
-            --print-timeout "60s" \
-            --log-file "${AGY_LOG}" \
-            2>&1 | tee /tmp/agy-test.log
-          TEST_EXIT=$?
-          set -e
-          echo ""
-          echo "Test exit code: ${TEST_EXIT}"
-          echo "Test output size: $(wc -c < /tmp/agy-test.log) bytes"
-          echo ""
-          if [[ -f "${AGY_LOG}" ]]; then
-            echo "=== AGY internal log (last 50 lines) ==="
-            tail -50 "${AGY_LOG}"
-          else
-            echo "No AGY log file generated"
-          fi
-          echo ""
-          if [[ $(wc -c < /tmp/agy-test.log) -eq 0 ]]; then
-            echo "::warning::AGY produced no output even for a simple test prompt"
-          fi
 
       - name: 執行任務
         if: ${{ (github.event_name == 'repository_dispatch' && github.event.client_payload.event_data != 'StatusUpdate') || inputs.event_data != 'StatusUpdate' }}
@@ -205,7 +150,7 @@ jobs:
           USER_COMMENT_ID="${USER_COMMENT_ID#\"}"
 
           if [[ -z "$COMMENT_ID" || -z "$USER_COMMENT_ID" ]]; then
-            echo "COMMENT_ID or USER_COMMENT_ID is missing"
+            echo "::error::COMMENT_ID or USER_COMMENT_ID is missing"
             exit 1
           fi
 
@@ -226,17 +171,14 @@ jobs:
           done
 
           if [[ ! -f "$USER_PROMPT_FILE" ]]; then
-            echo "Missing user prompt file: $USER_PROMPT_FILE"
+            echo "::error::Missing user prompt file: $USER_PROMPT_FILE"
             ls -la artifacts || true
             find artifacts -maxdepth 2 -type f | sort || true
             exit 1
           fi
 
           USER_PROMPT_CONTENT="$(cat "$USER_PROMPT_FILE")"
-          echo "User prompt length: ${#USER_PROMPT_CONTENT} chars"
-          echo "User prompt (first 200 chars): ${USER_PROMPT_CONTENT:0:200}"
 
-          # 將 prompt 寫入暫存檔，避免命令行長度或特殊字元問題
           PROMPT_FILE="$(mktemp)"
           cat > "${PROMPT_FILE}" <<-PROMPT_EOF
           請先閱讀 issue.md 與目前 repository 狀態，並完成以下任務：${USER_PROMPT_CONTENT}
@@ -246,8 +188,6 @@ jobs:
           請把最終結果完整寫入 artifacts/${COMMENT_ID}/result.md（繁體中文），並確保檔案可直接作為 issue 回覆內容。
           PROMPT_EOF
 
-          echo "Prompt file: ${PROMPT_FILE} ($(wc -c < "${PROMPT_FILE}") bytes)"
-          echo "Starting AGY execution..."
           set +e
           agy --print "$(cat "${PROMPT_FILE}")" \
             --dangerously-skip-permissions \
@@ -257,11 +197,7 @@ jobs:
           set -e
           rm -f "${PROMPT_FILE}"
 
-          echo ""
-          echo "AGY exit code: ${AGY_EXIT}"
-          echo "output.log size: $(wc -c < "artifacts/${COMMENT_ID}/output.log") bytes"
-
-          # 偵測認證失敗（僅檢查明確的 auth 錯誤訊息）
+          # 偵測認證失敗
           if grep -Eq '(^Authentication required\.|authentication timed out|You are not logged into Antigravity\.)' "artifacts/${COMMENT_ID}/output.log"; then
             echo "::error::AGY authentication failed. Please update AGY_OAUTH_TOKEN secret."
             exit 1
