@@ -28,6 +28,10 @@ inputs:
     description: 當輸出檔中偵測到 Google 服務回傳 429（配額超限）時寫入 result_file 的訊息
     required: false
     default: "很抱歉，這個任務沒有順利完成。\n\n**發生了什麼事？**\nGoogle API 回傳了 429（Too Many Requests）。這表示目前的 API 金鑰請求次數已達到 Google 設定的配額上限，Google 暫時拒絕了這次請求。\n\n**您現在可以：**\n- 等幾分鐘後重新指派這個 issue，讓任務重跑一次\n- 若持續發生，請通知開發人員至 Google Cloud Console 檢查配額用量，或考慮升級 API 方案"
+  rate_limit_message:
+    description: 當輸出檔中偵測到 API 服務回傳 429（速率限制）時寫入 result_file 的訊息
+    required: false
+    default: "很抱歉，這個任務沒有順利完成。\n\n**發生了什麼事？**\nAPI 服務商回傳了 429（Too Many Requests / 請求過於頻繁）。這表示目前的 API 請求次數已達到服務商設定的速率限制上限，服務暫時拒絕了這次請求。\n\n**您現在可以：**\n- 等幾分鐘後重新指派這個 issue，讓任務重跑一次\n- 若持續發生，請通知開發人員檢查 API 金鑰的配額與速率限制（Rate Limits）設定"
   openai_permission_message:
     description: 當輸出檔中偵測到 OpenAI WebSocket 連線失敗（HTTP 500）時寫入 result_file 的訊息
     required: false
@@ -46,6 +50,7 @@ runs:
         MESSAGE_SUFFIX: ${{ inputs.message_suffix }}
         NO_AUTH_MESSAGE: ${{ inputs.no_auth_message }}
         GOOGLE_QUOTA_EXCEEDED_MESSAGE: ${{ inputs.google_quota_exceeded_message }}
+        RATE_LIMIT_MESSAGE: ${{ inputs.rate_limit_message }}
         OPENAI_PERMISSION_MESSAGE: ${{ inputs.openai_permission_message }}
       run: |
         set -euo pipefail
@@ -85,8 +90,27 @@ runs:
           }
 
           if (content.includes("429")) {
-            log("::warning::偵測到 Google API 429（配額超限），將寫入 quota exceeded 訊息");
-            fs.writeFileSync(resultFile, `${process.env.GOOGLE_QUOTA_EXCEEDED_MESSAGE}\n`);
+            const isGoogle = content.toLowerCase().includes("google") || content.toLowerCase().includes("gemini");
+            let apiErrorMessage = "";
+            try {
+              const lines = content.split(/\r?\n/).filter(Boolean);
+              for (const line of lines) {
+                try {
+                  const entry = JSON.parse(line);
+                  if (entry.errorMessage) {
+                    apiErrorMessage = entry.errorMessage;
+                    break;
+                  }
+                } catch {}
+              }
+            } catch {}
+
+            let msg = isGoogle ? process.env.GOOGLE_QUOTA_EXCEEDED_MESSAGE : process.env.RATE_LIMIT_MESSAGE;
+            if (apiErrorMessage) {
+              msg += `\n\n**詳細錯誤資訊：**\n\`\`\`\n${apiErrorMessage}\n\`\`\``;
+            }
+            log(`::warning::偵測到 429 錯誤，將寫入 ${isGoogle ? "Google Quota Exceeded" : "Rate Limit"} 錯誤訊息`);
+            fs.writeFileSync(resultFile, `${msg}\n`);
             log(`結果已寫入：${resultFile}`);
             process.exit(0);
           }
