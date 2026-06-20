@@ -1,0 +1,11 @@
+{
+  "name": "Copilot Default",
+  "tagline": "基礎 Copilot Agent 範本，使用 GitHub Copilot CLI 執行任務",
+  "description": "Copilot Default 是原始 default 範本的 Copilot 版本，保留基本 Copilot CLI 設定、任務執行規範與 issue workflow。適合作為不需要額外 API 整合的 GitHub Copilot 自動化起點。",
+  "category": "framework",
+  "tags": ["copilot", "default", "template", "agent", "github-actions"],
+  "version": "1.0.0",
+  "support_url": "https://github.com/duotify/GitHubClawToolkit/issues",
+  "homepage": "https://learn.duotify.com/courses/githubclaw",
+  "requireEnv": []
+}
