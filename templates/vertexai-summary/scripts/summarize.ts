@@ -183,7 +183,7 @@ async function main(): Promise<void> {
 
   const promptFile = process.env.PROMPT_FILE;
   if (!promptFile) throw new Error('缺少 PROMPT_FILE 環境變數');
-  const model = normalizeText(process.env.VERTEXAI_SUMMARY_MODEL) || 'google/gemini-2.5-flash';
+  const model = normalizeText(process.env.VERTEXAI_SUMMARY_MODEL) || 'google/gemini-3.6-flash';
   const memoryLimit = parseMemoryLimit(process.env.MEMORY_LIMIT);
 
   const userPrompt = await readUserPrompt(promptFile);

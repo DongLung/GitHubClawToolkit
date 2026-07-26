@@ -40,6 +40,20 @@ const IMAGE_CONFIG_SCHEMA = {
   },
 } as const;
 
+const FLASH_LITE_IMAGE_MODEL = 'gemini-3.1-flash-lite-image';
+const FLASH_LITE_ASPECT_RATIOS = [
+  '1:1',
+  '3:2',
+  '2:3',
+  '3:4',
+  '4:3',
+  '4:5',
+  '5:4',
+  '9:16',
+  '16:9',
+  '21:9',
+] as const;
+
 function normalizeText(value: unknown): string {
   return String(value ?? '')
     .replace(/\r\n/g, '\n')
@@ -435,6 +449,21 @@ function parsePlannedImageConfig(responseText: string | undefined): PlannedImage
   };
 }
 
+function isFlashLiteImageModel(model: string): boolean {
+  return model === FLASH_LITE_IMAGE_MODEL || model.endsWith(`/${FLASH_LITE_IMAGE_MODEL}`);
+}
+
+function buildFlashLiteImagePlan(userPrompt: string): PlannedImageConfig {
+  const aspectRatio = FLASH_LITE_ASPECT_RATIOS.find((ratio) => userPrompt.includes(ratio)) || '1:1';
+  return {
+    finalPrompt: userPrompt,
+    imageConfig: {
+      aspectRatio,
+      imageSize: '1K',
+    },
+  };
+}
+
 async function main(): Promise<void> {
   const apiKey = normalizeText(process.env.GEMINI_API_KEY);
   if (!apiKey) throw new Error('缺少 GEMINI_API_KEY');
@@ -446,7 +475,7 @@ async function main(): Promise<void> {
   if (!issueDir) throw new Error('缺少 ISSUE_DIR 環境變數');
 
   const namePrefix = normalizeText(process.env.NAME_PREFIX) || 'image';
-  const model = normalizeText(process.env.GEMINI_NANOBANANA_MODEL || process.env.NANOBANANA_MODEL) || 'gemini-3-pro-image-preview';
+  const model = normalizeText(process.env.GEMINI_NANOBANANA_MODEL || process.env.NANOBANANA_MODEL) || 'gemini-3.1-flash-image';
   const memoryLimit = parseMemoryLimit(process.env.MEMORY_LIMIT);
   const userPrompt = await readUserPrompt(promptFile);
   const contextJsonlPath = await resolveContextJsonlPath();
@@ -460,19 +489,23 @@ async function main(): Promise<void> {
   console.error(`已讀取使用者提示：${path.resolve(promptFile)}`);
   console.error(`已讀取上下文 jsonl：${contextJsonlPath}`);
   const contents = await buildConversationContents({ userPrompt, contextJsonl, memoryLimit });
-  const planningContents = buildPlanningContents(contents);
-
-  const planningResponse = await generateContentWithRetry(ai, {
-    model,
-    config: {
-      systemInstruction: systemPrompt,
-      responseMimeType: 'application/json',
-      responseJsonSchema: IMAGE_CONFIG_SCHEMA,
-      tools: [{ googleSearch: {} }],
-    },
-    contents: planningContents,
-  });
-  const planned = parsePlannedImageConfig(planningResponse.text);
+  const flashLiteImage = isFlashLiteImageModel(model);
+  let planned: PlannedImageConfig;
+  if (flashLiteImage) {
+    planned = buildFlashLiteImagePlan(userPrompt);
+  } else {
+    const planningResponse = await generateContentWithRetry(ai, {
+      model,
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: 'application/json',
+        responseJsonSchema: IMAGE_CONFIG_SCHEMA,
+        tools: [{ googleSearch: {} }],
+      },
+      contents: buildPlanningContents(contents),
+    });
+    planned = parsePlannedImageConfig(planningResponse.text);
+  }
   console.error(`已規劃 imageConfig：${JSON.stringify(planned.imageConfig)}`);
 
   const response = await generateContentWithRetry(ai, {
@@ -481,15 +514,17 @@ async function main(): Promise<void> {
       systemInstruction: systemPrompt,
       imageConfig: planned.imageConfig,
       responseModalities: ['IMAGE'],
-      tools: [{ googleSearch: {} }],
+      ...(flashLiteImage ? {} : { tools: [{ googleSearch: {} }] }),
     },
-    contents: [
-      ...contents,
-      {
-        role: 'user',
-        parts: [{ text: planned.finalPrompt }],
-      },
-    ],
+    contents: flashLiteImage
+      ? contents
+      : [
+          ...contents,
+          {
+            role: 'user',
+            parts: [{ text: planned.finalPrompt }],
+          },
+        ],
   });
 
   const candidates = Array.isArray(response?.candidates) ? response.candidates : [];
